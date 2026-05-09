@@ -16,6 +16,7 @@ const WorkerArgs = struct {
     y_end: u16,
 
     mandelbrot_set_result: *[subdivisions + 1][subdivisions + 1]u16,
+    init: std.process.Init,
 };
 
 pub fn main(init: std.process.Init) !void {
@@ -23,7 +24,9 @@ pub fn main(init: std.process.Init) !void {
 
     const time_taken_serial = serial_compute(init, &mandelbrot_set_result);
     const time_taken_threads = parallel_compute1(init, &mandelbrot_set_result);
+    //const time_taken_2_thread = parallel_compute(2, init, &mandelbrot_set_result);
     std.debug.print("Time taken (Serial): {any} milliseconds\n", .{time_taken_serial});
+    //std.debug.print("Time taken (2 threads): {any} milliseconds\n", .{time_taken_2_thread});
     std.debug.print("Time taken (4 threads): {any} milliseconds\n", .{time_taken_threads});
 
     try save_render(init, &mandelbrot_set_result);
@@ -61,7 +64,7 @@ fn serial_compute(init: std.process.Init, mandelbrot_set_result: *[subdivisions 
     return start_time.durationTo(end_time).toMilliseconds();
 }
 
-/// Here we use 4 threads to parallelize conputation
+/// Here we use 4 threads to parallelize conputation (quadrants, but it shouldnt matter if it is quadrant or not (hopium cache hits))
 fn parallel_compute1(init: std.process.Init, mandelbrot_set_result: *[subdivisions + 1][subdivisions + 1]u16) !i64 {
     const start_time = Io.Timestamp.now(init.io, .awake);
     const thread1 = try std.Thread.spawn(
@@ -73,6 +76,7 @@ fn parallel_compute1(init: std.process.Init, mandelbrot_set_result: *[subdivisio
             .y_start = 0,
             .y_end = subdivisions / 2,
             .mandelbrot_set_result = mandelbrot_set_result,
+            .init = init,
         })},
     );
 
@@ -85,6 +89,7 @@ fn parallel_compute1(init: std.process.Init, mandelbrot_set_result: *[subdivisio
             .y_start = subdivisions / 2,
             .y_end = subdivisions + 1,
             .mandelbrot_set_result = mandelbrot_set_result,
+            .init = init,
         })},
     );
 
@@ -97,6 +102,7 @@ fn parallel_compute1(init: std.process.Init, mandelbrot_set_result: *[subdivisio
             .y_start = 0,
             .y_end = subdivisions / 2,
             .mandelbrot_set_result = mandelbrot_set_result,
+            .init = init,
         })},
     );
 
@@ -109,6 +115,7 @@ fn parallel_compute1(init: std.process.Init, mandelbrot_set_result: *[subdivisio
             .y_start = subdivisions / 2,
             .y_end = subdivisions + 1,
             .mandelbrot_set_result = mandelbrot_set_result,
+            .init = init,
         })},
     );
 
@@ -121,7 +128,35 @@ fn parallel_compute1(init: std.process.Init, mandelbrot_set_result: *[subdivisio
     return start_time.durationTo(end_time).toMilliseconds();
 }
 
+fn parallel_compute(num_threads: u8, init: std.process.Init, mandelbrot_set_result: *[subdivisions + 1][subdivisions + 1]u16) !i64 {
+    const threads = [_]std.Thread{undefined} ** num_threads;
+    const start_time = Io.Timestamp.now(init.io, .awake);
+    for (0..num_threads) |i| {
+        const start_row = @as(u16, @intCast(i)) * (subdivisions / num_threads);
+        const end_row = @as(u16, @intCast(i + 1)) * (subdivisions / num_threads);
+        threads[i] = try std.Thread.spawn(
+            .{},
+            partial_compute,
+            .{@as(WorkerArgs, .{
+                .x_start = start_row,
+                .x_end = end_row,
+                .y_start = 0,
+                .y_end = subdivisions + 1,
+                .mandelbrot_set_result = mandelbrot_set_result,
+                .init = init,
+            })},
+        );
+    }
+
+    for (0..num_threads) |i| {
+        threads[i].join();
+    }
+    const end_time = Io.Timestamp.now(init.io, .awake);
+    return start_time.durationTo(end_time).toMilliseconds();
+}
+
 fn partial_compute(worker_args: WorkerArgs) void {
+    const start_time = std.Io.Timestamp.now(worker_args.init.io, .awake);
     for (worker_args.x_start..worker_args.x_end) |i| {
         for (worker_args.y_start..worker_args.y_end) |j| {
             var z_re: f64 = 0;
@@ -144,6 +179,8 @@ fn partial_compute(worker_args: WorkerArgs) void {
             }
         }
     }
+    const end_time = Io.Timestamp.now(worker_args.init.io, .awake);
+    std.debug.print("{any} \n", .{start_time.durationTo(end_time).toMilliseconds()});
 }
 
 fn save_render(init: std.process.Init, mandelbrot_set_result: *[subdivisions + 1][subdivisions + 1]u16) !void {
