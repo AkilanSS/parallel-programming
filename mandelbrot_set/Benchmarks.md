@@ -3,6 +3,7 @@
 - AMD Ryzen 7 7840HS, 8-core, 16-threads 
 
 ## Performace Highlights:
+Without interleaving:
 - Time to compute with 1 threads: 149.218 ms (1.000x) 
 - Time to compute with 2 threads: 77.942 ms (1.914x)
 - Time to compute with 3 threads: 131.177 ms (1.138x)
@@ -18,9 +19,27 @@
 - Time to compute with 128 threads: 30.221 ms (4.938x)
 - Time to compute with 255 threads: 43.996 ms (3.392 x)
 
+With interleaving:
+- Time to compute with 1 threads: 140.068ms (1.000)
+- Time to compute with 2 threads: 76.91ms (1.821)
+- Time to compute with 3 threads: 49.342ms (2.839)
+- Time to compute with 4 threads: 39.836ms (3.516)
+- Time to compute with 5 threads: 32.187ms (4.352)
+- Time to compute with 6 threads: 26.412ms (5.303)
+- Time to compute with 7 threads: 23.479ms (5.966)
+- Time to compute with 8 threads: 23.473ms (5.967)
+- Time to compute with 12 threads: 19.308ms (7.254)
+- Time to compute with 16 threads: 18.344ms (7.636)
+- Time to compute with 32 threads: 19.845ms (7.058)
+- Time to compute with 64 threads: 19.434ms (7.207)
+- Time to compute with 128 threads: 23.785ms (5.889)
+- Time to compute with 255 threads: 37.232ms (3.762)
+
 ### Execution Speedup
 ![alt text](image.png)
+![alt_text](./scripts/execution-speedup-interleaved-16.png)
 ![alt_text](./scripts/execution-speedup.png)
+![alt_text](./scripts/execution-speedup-interleaved.png)
 
 
 ## Debug Log

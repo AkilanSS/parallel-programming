@@ -17,26 +17,51 @@ const WorkerArgs = struct {
     y_start: u16,
     y_end: u16,
 
-    mandelbrot_set_result: *[subdivisions + 1][subdivisions + 1]u16,
+    mandelbrot_set_result: *[subdivisions + 1][subdivisions + 1]u8,
+    init: std.process.Init,
+};
+
+const WorkerInterleaveArgs = struct {
+    thread_num: u8,
+
+    row_skip: u8,
+
+    mandelbrot_set_result: *[subdivisions + 1][subdivisions + 1]u8,
     init: std.process.Init,
 };
 
 pub fn main(init: std.process.Init) !void {
-    var mandelbrot_set_result: [subdivisions + 1][subdivisions + 1]u16 = [_][subdivisions + 1]u16{[_]u16{max_iterations} ** (subdivisions + 1)} ** (subdivisions + 1);
+    var mandelbrot_set_result: [subdivisions + 1][subdivisions + 1]u8 = [_][subdivisions + 1]u8{[_]u8{max_iterations} ** (subdivisions + 1)} ** (subdivisions + 1);
     const num_threads_array = [_]u8{ 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 32, 64, 128, 255 };
-
     var serial_time_taken: i64 = undefined;
+
+    // for (num_threads_array) |num_threads| {
+    //     const time_taken = try parallel_row_compute(num_threads, init, &mandelbrot_set_result);
+    //     if (num_threads == 1) serial_time_taken = time_taken;
+    //     std.debug.print(
+    //         "Time to compute with {d} threads: {d:.3} ms ({d:.3} x) \n",
+    //         .{
+    //             num_threads,
+    //             @as(f64, @floatFromInt(time_taken)) / 1000,
+    //             @as(f64, @floatFromInt(serial_time_taken)) / @as(f64, @floatFromInt(time_taken)),
+    //         },
+    //     );
+    // }
+
     for (num_threads_array) |num_threads| {
-        const time_taken = try parallel_row_compute(num_threads, init, &mandelbrot_set_result);
+        const time_taken = try parallel_interleave_compute(num_threads, init, &mandelbrot_set_result);
         if (num_threads == 1) serial_time_taken = time_taken;
-        std.debug.print(
-            "Time to compute with {d} threads: {d:.3} ms ({d:.3} x) \n",
-            .{
-                num_threads,
-                @as(f64, @floatFromInt(time_taken)) / 1000,
-                @as(f64, @floatFromInt(serial_time_taken)) / @as(f64, @floatFromInt(time_taken)),
-            },
-        );
+
+        // std.debug.print(
+        //     "- Time to compute with {d} threads: {d:.3} ms ({d:.3} x) \n",
+        //     .{
+        //         num_threads,
+        //         @as(f64, @floatFromInt(time_taken)) / 1000,
+        //         @as(f64, @floatFromInt(serial_time_taken)) / @as(f64, @floatFromInt(time_taken)),
+        //     },
+        // );
+
+        std.debug.print("{d:.3}, ", .{@as(f64, @floatFromInt(time_taken)) / 1000});
     }
 
     try save_render(init, &mandelbrot_set_result);
@@ -47,7 +72,7 @@ inline fn range(i: u32) f64 {
     return a + del * @as(f64, @floatFromInt(i));
 }
 
-fn serial_compute(init: std.process.Init, mandelbrot_set_result: *[subdivisions + 1][subdivisions + 1]u16) i64 {
+fn serial_compute(init: std.process.Init, mandelbrot_set_result: *[subdivisions + 1][subdivisions + 1]u8) i64 {
     const start_time = std.Io.Timestamp.now(init.io, .awake);
     for (0..subdivisions + 1) |i| {
         for (0..subdivisions + 1) |j| {
@@ -75,7 +100,7 @@ fn serial_compute(init: std.process.Init, mandelbrot_set_result: *[subdivisions 
 }
 
 /// Here we use 4 threads to parallelize conputation (quadrants, but it shouldnt matter if it is quadrant or not (hopium cache hits))
-fn parallel_compute_quad(init: std.process.Init, mandelbrot_set_result: *[subdivisions + 1][subdivisions + 1]u16) !i64 {
+fn parallel_compute_quad(init: std.process.Init, mandelbrot_set_result: *[subdivisions + 1][subdivisions + 1]u8) !i64 {
     const start_time = Io.Timestamp.now(init.io, .awake);
     const thread1 = try std.Thread.spawn(
         .{},
@@ -138,7 +163,7 @@ fn parallel_compute_quad(init: std.process.Init, mandelbrot_set_result: *[subdiv
     return start_time.durationTo(end_time).toMilliseconds();
 }
 
-fn parallel_row_compute(num_threads: u8, init: std.process.Init, mandelbrot_set_result: *[subdivisions + 1][subdivisions + 1]u16) !i64 {
+fn parallel_row_compute(num_threads: u8, init: std.process.Init, mandelbrot_set_result: *[subdivisions + 1][subdivisions + 1]u8) !i64 {
     var threads_list = std.ArrayList(std.Thread).empty;
     defer threads_list.deinit(init.gpa);
     var threads = try threads_list.addManyAsSlice(init.gpa, num_threads);
@@ -169,6 +194,62 @@ fn parallel_row_compute(num_threads: u8, init: std.process.Init, mandelbrot_set_
     return start_time.durationTo(end_time).toMicroseconds();
 }
 
+fn parallel_interleave_compute(num_threads: u8, init: std.process.Init, mandelbrot_set_result: *[subdivisions + 1][subdivisions + 1]u8) !i64 {
+    var threads_list = std.ArrayList(std.Thread).empty;
+    defer threads_list.deinit(init.gpa);
+    var threads = try threads_list.addManyAsSlice(init.gpa, num_threads);
+
+    //std.debug.print("{any} threads\n", .{threads.len});
+    const start_time = Io.Timestamp.now(init.io, .awake);
+    for (0..num_threads) |i| {
+        threads[i] = try std.Thread.spawn(
+            .{},
+            partial_interleave_compute,
+            .{@as(WorkerInterleaveArgs, .{
+                .thread_num = @as(u8, @intCast(i)),
+                .row_skip = num_threads,
+                .mandelbrot_set_result = mandelbrot_set_result,
+                .init = init,
+            })},
+        );
+    }
+    for (0..num_threads) |i| {
+        threads[i].join();
+    }
+    const end_time = Io.Timestamp.now(init.io, .awake);
+    return start_time.durationTo(end_time).toMicroseconds();
+}
+
+fn partial_interleave_compute(worker_args: WorkerInterleaveArgs) void {
+    var i: u32 = worker_args.thread_num;
+    //const start_time = Io.Timestamp.now(worker_args.init.io, .awake);
+    while (i < subdivisions + 1) : (i += worker_args.row_skip) {
+        //std.debug.print("{d}\n", .{i});
+        for (0..subdivisions + 1) |j| {
+            var z_re: f64 = 0;
+            var z_im: f64 = 0;
+
+            const c_re = range(@as(u32, @intCast(j)));
+            const c_im = range(@as(u32, @intCast(i)));
+
+            // The below are not independent
+            for (0..max_iterations) |k| {
+                if (std.math.sqrt(z_re * z_re + z_im * z_im) >= abs_bound) {
+                    worker_args.mandelbrot_set_result[i][j] = @as(u8, @intCast(k));
+                    break;
+                }
+                const z_re_new = z_re * z_re - z_im * z_im + c_re;
+                const z_im_new = 2 * z_re * z_im + c_im;
+
+                z_re = z_re_new;
+                z_im = z_im_new;
+            }
+        }
+    }
+    //const end_time = Io.Timestamp.now(worker_args.init.io, .awake);
+    //std.debug.print("[Thread {d}]: {d:.3}\n", .{ worker_args.thread_num, @as(f64, @floatFromInt(start_time.durationTo(end_time).toMicroseconds())) / 1000 });
+}
+
 fn partial_compute(worker_args: WorkerArgs) void {
     const start_time = std.Io.Timestamp.now(worker_args.init.io, .awake);
     for (worker_args.x_start..worker_args.x_end) |i| {
@@ -182,7 +263,7 @@ fn partial_compute(worker_args: WorkerArgs) void {
             // The below are not independent
             for (0..max_iterations) |k| {
                 if (std.math.sqrt(z_re * z_re + z_im * z_im) >= abs_bound) {
-                    worker_args.mandelbrot_set_result[i][j] = @as(u16, @intCast(k));
+                    worker_args.mandelbrot_set_result[i][j] = @as(u8, @intCast(k));
                     break;
                 }
                 const z_re_new = z_re * z_re - z_im * z_im + c_re;
@@ -197,7 +278,7 @@ fn partial_compute(worker_args: WorkerArgs) void {
     std.debug.print("[Thread {any}]: {d:.3} ms \n", .{ worker_args.thread_num, @as(f64, @floatFromInt(start_time.durationTo(end_time).toMicroseconds())) / 1000 });
 }
 
-fn save_render(init: std.process.Init, mandelbrot_set_result: *[subdivisions + 1][subdivisions + 1]u16) !void {
+fn save_render(init: std.process.Init, mandelbrot_set_result: *[subdivisions + 1][subdivisions + 1]u8) !void {
     // Create a file and store the content in ppm format
     var file_buffer: [1024]u8 = undefined;
     var save_file = try Io.Dir.cwd().createFile(init.io, "render/mandelbrot_render.ppm", .{});
