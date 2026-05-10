@@ -18,6 +18,10 @@
 - Time to compute with 128 threads: 30.221 ms (4.938x)
 - Time to compute with 255 threads: 43.996 ms (3.392 x)
 
+### Execution Speedup
+![alt text](image.png)
+![alt_text](./scripts/execution-speedup.png)
+
 
 ## Debug Log
 
