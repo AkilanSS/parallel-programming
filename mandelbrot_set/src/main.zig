@@ -23,11 +23,20 @@ const WorkerArgs = struct {
 
 pub fn main(init: std.process.Init) !void {
     var mandelbrot_set_result: [subdivisions + 1][subdivisions + 1]u16 = [_][subdivisions + 1]u16{[_]u16{max_iterations} ** (subdivisions + 1)} ** (subdivisions + 1);
-    const num_threads_array = [_]u8{ 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 32, 64 };
+    const num_threads_array = [_]u8{ 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 32, 64, 128, 255 };
 
+    var serial_time_taken: i64 = undefined;
     for (num_threads_array) |num_threads| {
         const time_taken = try parallel_row_compute(num_threads, init, &mandelbrot_set_result);
-        std.debug.print("Time to compute with {d} threads: {d:.3} ms \n", .{ num_threads, @as(f64, @floatFromInt(time_taken)) / 1000 });
+        if (num_threads == 1) serial_time_taken = time_taken;
+        std.debug.print(
+            "Time to compute with {d} threads: {d:.3} ms ({d:.3} x) \n",
+            .{
+                num_threads,
+                @as(f64, @floatFromInt(time_taken)) / 1000,
+                @as(f64, @floatFromInt(serial_time_taken)) / @as(f64, @floatFromInt(time_taken)),
+            },
+        );
     }
 
     try save_render(init, &mandelbrot_set_result);
