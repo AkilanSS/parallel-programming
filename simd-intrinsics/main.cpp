@@ -111,14 +111,60 @@ void fizzbuzz_vector(int* input, int* output, int N)
     }
 }
 
+/**
+* Fixed-length power. Take a vector of float and raise all to P.
+* Serial implementation
+*/
+void fixed_power_serial(float* input, int P, float* output, int N)
+{
+    for (int i = 0; i < N; i++)
+    {
+        float x = input[i];
+        float result = input[i];
+        int count = P - 1;
+        while (count > 0)
+        {
+            result *= x;
+            count--;
+        }
+        output[i] = result;
+    }
+}
+
+/**
+* Fixed-length power. Take a vector of float and raise all to P.
+* Vector implementation
+*/
+void fixed_power_vector(float* input, int P, float* output, int N)
+{
+    __m256 one = _mm256_set1_ps(1.f);
+    __m256 zero = _mm256_setzero_ps();
+
+    int i = 0;
+    for (; i <= N - 8; i += 8)
+    {
+        __m256 x = _mm256_loadu_ps(&input[i]);
+        __m256 result = _mm256_loadu_ps(&input[i]);
+        int count = P - 1;
+
+        while (count > 0)
+        {
+            result = _mm256_mul_ps(result, x);
+            count--;
+        }
+
+        _mm256_storeu_ps(&output[i], result);
+    }
+}
+
 
 int main()
 { 
     constexpr int N = 8; //comptime babyyyy
-    int input[N] = {3, 4, 5, 1, 4, 9, 2, 1};
-    int output[N];
+    float input[N] = {3.f, 4.f, 5.f, 1.f, 4.f, 9.f, 2.f, 1.f};
+    float output[N];
 
-    fizzbuzz_serial(input, output, N);
+    fixed_power_serial(input, 4, output, N);
 
     for (int i = 0; i < N; i++)
     {
@@ -127,7 +173,7 @@ int main()
 
     cout << endl;
 
-    fizzbuzz_vector(input, output, N);
+    fixed_power_vector(input, 4, output, N);
 
     for (int i = 0; i < N; i++)
     {
