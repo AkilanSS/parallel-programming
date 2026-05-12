@@ -12,58 +12,64 @@ using namespace std;
 //Implement clampedExp()
 // if a^b > 9.9999 => 9.9999, else a^b
 
-void clamped_exp_serial(float* values, int* exponents,  float* output, int N)
+void clamped_relu_serial(float* input, float* output, int N)
 {
     for (int i = 0; i < N; i++)
     {
-        float x = values[i];
-        float y = exponents[i];
-
-        if (y == 0)
+        float x = input[i];
+        if (x < 0)
         {
-            output[i] = 1.0f;
+            output[i] = 0;
         }
         else
         {
-            float result = x;
-            int count = y - 1;
-            while (count > 0)
-            {
-                result = result * x;
-                count--;
-            }
-
-            if (result > 9.99999f)
-            {
-                result = 9.99999f;
-            }
-            else 
-            output[i] = result;
+            output[i] = 1;
         }
     }
-}
+} 
 
-
-//Will be using 8 wide SIMD instructions (__m256)
-void clamped_exp_vector(float* values, int* exponents, float* output, int N)
+//8-wide SIMD
+void clamped_relu_vector(float* input, float* output, int N)
 {
-    __m256i zero = _mm256_set1_epi32(0);
-    __m256i one = _mm256_set1_epi32(1);
-    __m256 final_result;
+    _mm256_zeroall(); //clears all contents in simd registers (found this when i did ctrl + space)
 
+    __m256 zero = _mm256_setzero_ps();
+    __m256 one = _mm256_set1_ps(1.f);
+
+    //implement min(max(x, 0), 1)
     int i = 0;
-    for (; i <= N - 8; N += 8)
+    for(; i <= N - 8; i++)
     {
-        __m256 x = _mm256_loadu_ps(&values[i]);
-        __m256i y = _mm256_loadu_epi32(&exponents[i]);
-
-        __mmask8 zero_mask = _mm256_cmpeq_epi32_mask(zero, y); // if (y == 0)
+        __m256 x = _mm256_load_ps(&input[i]);
+        __m256 max_x_0 = _mm256_max_ps(x, zero);
+        __m256 min_max = _mm256_min_ps(max_x_0, one);
         
-
-        __m256 result = x;
-        __m256i count = _mm256_sub_epi32(y, one);
-
-        __m256i count_gt_0_mask = _mm256_cmpgt_epi32(count, zero);
-
+        _mm256_store_ps(&output[i], min_max);
     }
+} 
+
+int main()
+{ 
+    constexpr int N = 8; //comptime babyyyy
+    float input[N] = {-3, 4, -5, 1, 4, -9, 2, 1};
+    float output[N];
+
+    clamped_relu_serial(input, output, N);
+
+    for (int i = 0; i < N; i++)
+    {
+        cout << output[i] << " ";
+    }
+
+    cout << endl;
+
+    clamped_relu_vector(input, output, N);
+
+    for (int i = 0; i < N; i++)
+    {
+        cout << output[i] << " ";
+    }
+
+    cout << endl;
+
 }
