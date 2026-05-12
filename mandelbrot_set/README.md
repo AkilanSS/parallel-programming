@@ -2,8 +2,8 @@
 - For image of size 1001 x  1001, with atmost 255 iterations to check divergence of 10 units.
 - AMD Ryzen 7 7840HS, 8-core, 16-threads 
 
-## Performace Highlights:
-Without interleaving:
+## Performace Highlights: (Figures below)
+Without interleaving: 
 - Time to compute with 1 threads: 149.218 ms (1.000x) 
 - Time to compute with 2 threads: 77.942 ms (1.914x)
 - Time to compute with 3 threads: 131.177 ms (1.138x)
