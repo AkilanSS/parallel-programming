@@ -157,14 +157,83 @@ void fixed_power_vector(float* input, int P, float* output, int N)
     }
 }
 
+/**
+* Serial version of clampedExp(). If v^e > 9.99, 9.999 else v^e
+*/
+void clampedExp_serial(float* values, int* exponents, float* output, int N)
+{
+    for (int i = 0; i < N; i++)
+    {
+        float x = values[i];
+        float res = 1;
+        int exp = exponents[i];
+
+        while (exp > 0)
+        {
+            res = res * x;
+            exp--;
+        }
+        if (res > 9.9999f)
+        {
+            res = 9.9999f;
+        }
+        output[i] = res;
+    }
+}
+
+/** 
+* Vector implementation of clampedExp()
+*/
+void clampedExp_vector(float* values, int* exponents, float* output, int N)
+{
+    /**
+    * TODO:
+    * - Load a wide variable of 8 sp base in a variable. This will be the inital result register.
+    * - Load a wide variable of 8 32i exponenets in a variable. Subtract one from this.
+    * - Compute the mask of exponent register greater than 0. Eg: 11100101.
+    * - Compute the mask of result register greater than 9.9999f. Eg 0001001.
+    * - Compute the one step multiplication, and update the result register based on the first and second mask.
+    * - Decrement the exponent register
+    * - Repeat
+    * - Store the result
+    * -
+    * -
+    * - Alternatively. Compute the full exponentiation. Compute mask of result greater than 9.999f. Store with the mask (Might save some cycles)
+    */
+
+    __m256 clamp_val = _mm256_set1_ps(9.9999f);
+
+    int i = 0;
+    for (;i <= N - 8; i += 8)
+    {
+        __m256 x = _mm256_loadu_ps(&values[i]);
+        __m256 res = _mm256_set1_ps(1.f);
+        __m256i exp = _mm256_loadu_epi32(&exponents[i]);
+
+        __m256i exp_gt_zero_mask = _mm256_cmpgt_epi32(exp, _mm256_setzero_si256());
+        while (!_mm256_testz_si256(exp_gt_zero_mask, exp_gt_zero_mask)) //This instruction compresses the mask to just 8 bits. 
+        {                                                                    // if 00000000 which is 0, then all exp are less than or equal to zero, so we can stop
+            __m256 res_t = _mm256_mul_ps(res, x);
+            res = _mm256_blendv_ps(res, res_t, _mm256_castsi256_ps(exp_gt_zero_mask));
+            exp = _mm256_sub_epi32(exp, _mm256_set1_epi32(1));
+            exp_gt_zero_mask = _mm256_cmpgt_epi32(exp, _mm256_setzero_si256()); //Update mask
+        }
+
+        __m256 clamp_mask = _mm256_cmp_ps(res, clamp_val, 0x0E);
+        res = _mm256_blendv_ps(res, clamp_val, clamp_mask);
+
+        _mm256_storeu_ps(&output[i], res);
+    }
+}
 
 int main()
 { 
     constexpr int N = 8; //comptime babyyyy
     float input[N] = {3.f, 4.f, 5.f, 1.f, 4.f, 9.f, 2.f, 1.f};
+    int exp[N] = {1, 4, 1, 4, 1, 6, 1, 3};
     float output[N];
 
-    fixed_power_serial(input, 4, output, N);
+    clampedExp_serial(input, exp, output, N);
 
     for (int i = 0; i < N; i++)
     {
@@ -173,7 +242,7 @@ int main()
 
     cout << endl;
 
-    fixed_power_vector(input, 4, output, N);
+    clampedExp_vector(input, exp, output, N);
 
     for (int i = 0; i < N; i++)
     {
