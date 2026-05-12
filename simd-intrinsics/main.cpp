@@ -95,7 +95,7 @@ void fizzbuzz_vector(int* input, int* output, int N)
     int i = 0;
     for(; i <= N - 8; i+=8)
     {
-        __m256i x = _mm256_load_epi32(&input[i]);
+        __m256i x = _mm256_loadu_epi32(&input[i]);
         __m256i odd_1 = _mm256_and_epi32(x, one); // x % 2
         __m256i odd_1_mask = _mm256_cmpeq_epi32(odd_1, zero); // generates mask for (x % 2 == 0)
 
@@ -107,7 +107,7 @@ void fizzbuzz_vector(int* input, int* output, int N)
         __m256i res_sub = _mm256_blendv_ps(sub_1, x, odd_1_mask);
         __m256i res_sub_doubled = _mm256_blendv_ps(res_sub, doubled, odd_1_mask);
 
-        _mm256_store_epi32(&output[i], res_sub_doubled);
+        _mm256_storeu_epi32(&output[i], res_sub_doubled);
     }
 }
 

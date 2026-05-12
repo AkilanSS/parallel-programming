@@ -120,11 +120,11 @@ _Z15fizzbuzz_vectorPiS_i:               # @_Z15fizzbuzz_vectorPiS_i
 	vpcmpeqd	%ymm1, %ymm1, %ymm1
 	.p2align	4, 0x90
 .LBB3_2:                                # =>This Inner Loop Header: Depth=1
-	vmovdqa	(%rdi,%rcx,4), %ymm2
+	vmovdqu	(%rdi,%rcx,4), %ymm2
 	vptestnmd	%ymm0, %ymm2, %k1
 	vpaddd	%ymm1, %ymm2, %ymm3
 	vpaddd	%ymm2, %ymm2, %ymm3 {%k1}
-	vmovdqa	%ymm3, (%rsi,%rcx,4)
+	vmovdqu	%ymm3, (%rsi,%rcx,4)
 	addq	$8, %rcx
 	cmpq	%rax, %rcx
 	jle	.LBB3_2
@@ -228,7 +228,7 @@ main:                                   # @main
 	callq	_ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEE5flushEv@PLT
 	vzeroall
 	vmovaps	.LCPI4_0(%rip), %ymm0           # ymm0 = [2,8,4,0,8,8,4,0]
-	vmovaps	%ymm0, 16(%rsp)
+	vmovups	%ymm0, 16(%rsp)
 	xorl	%r15d, %r15d
 	leaq	.L.str(%rip), %r14
 	.p2align	4, 0x90
