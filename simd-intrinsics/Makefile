@@ -1,6 +1,6 @@
 CXX = clang++
 # IMPORTANT: -mavx2 is required for x86intrin.h to resolve correctly
-CXXFLAGS = -std=c++20 -O1 -mavx2 -Wall -stdlib=libc++
+CXXFLAGS = -std=c++20 -O1 -mavx2 -mavx512vl -Wall -stdlib=libc++
 
 all: main
 

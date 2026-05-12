@@ -20,9 +20,9 @@ _Z19clamped_relu_serialPfS_i:           # @_Z19clamped_relu_serialPfS_i
 	vmovss	.LCPI0_0(%rip), %xmm1           # xmm1 = [1.0E+0,0.0E+0,0.0E+0,0.0E+0]
 	.p2align	4, 0x90
 .LBB0_2:                                # =>This Inner Loop Header: Depth=1
-	vmovss	(%rdi,%rcx,4), %xmm2            # xmm2 = mem[0],zero,zero,zero
-	vcmpltss	%xmm0, %xmm2, %xmm2
-	vandnps	%xmm1, %xmm2, %xmm2
+	vcmpgtss	(%rdi,%rcx,4), %xmm0, %k1
+	vmovaps	%xmm1, %xmm2
+	vmovss	%xmm0, %xmm2, %xmm2 {%k1}
 	vmovss	%xmm2, (%rsi,%rcx,4)
 	incq	%rcx
 	cmpq	%rcx, %rax
@@ -45,23 +45,23 @@ _Z19clamped_relu_vectorPfS_i:           # @_Z19clamped_relu_vectorPfS_i
 	.cfi_startproc
 # %bb.0:
 	vzeroall
-                                        # kill: def $edx killed $edx def $rdx
 	cmpl	$8, %edx
 	jl	.LBB1_3
 # %bb.1:
-	addl	$-7, %edx
-	xorl	%eax, %eax
+	addl	$-8, %edx
+	movslq	%edx, %rax
+	xorl	%ecx, %ecx
 	vxorps	%xmm0, %xmm0, %xmm0
 	vbroadcastss	.LCPI1_0(%rip), %ymm1   # ymm1 = [1.0E+0,1.0E+0,1.0E+0,1.0E+0,1.0E+0,1.0E+0,1.0E+0,1.0E+0]
 	.p2align	4, 0x90
 .LBB1_2:                                # =>This Inner Loop Header: Depth=1
-	vmovaps	(%rdi,%rax,4), %ymm2
+	vmovaps	(%rdi,%rcx,4), %ymm2
 	vmaxps	%ymm0, %ymm2, %ymm2
 	vminps	%ymm1, %ymm2, %ymm2
-	vmovaps	%ymm2, (%rsi,%rax,4)
-	incq	%rax
-	cmpq	%rax, %rdx
-	jne	.LBB1_2
+	vmovaps	%ymm2, (%rsi,%rcx,4)
+	addq	$8, %rcx
+	cmpq	%rax, %rcx
+	jle	.LBB1_2
 .LBB1_3:
 	vzeroupper
 	retq
@@ -69,21 +69,83 @@ _Z19clamped_relu_vectorPfS_i:           # @_Z19clamped_relu_vectorPfS_i
 	.size	_Z19clamped_relu_vectorPfS_i, .Lfunc_end1-_Z19clamped_relu_vectorPfS_i
 	.cfi_endproc
                                         # -- End function
+	.globl	_Z15fizzbuzz_serialPiS_i        # -- Begin function _Z15fizzbuzz_serialPiS_i
+	.p2align	4, 0x90
+	.type	_Z15fizzbuzz_serialPiS_i,@function
+_Z15fizzbuzz_serialPiS_i:               # @_Z15fizzbuzz_serialPiS_i
+	.cfi_startproc
+# %bb.0:
+	testl	%edx, %edx
+	jle	.LBB2_3
+# %bb.1:
+	movl	%edx, %eax
+	xorl	%ecx, %ecx
+	.p2align	4, 0x90
+.LBB2_2:                                # =>This Inner Loop Header: Depth=1
+	movl	(%rdi,%rcx,4), %edx
+	leal	-1(%rdx), %r8d
+	movl	%edx, %r9d
+	addl	%edx, %r9d
+	testb	$1, %dl
+	cmovnel	%r8d, %r9d
+	movl	%r9d, (%rsi,%rcx,4)
+	incq	%rcx
+	cmpq	%rcx, %rax
+	jne	.LBB2_2
+.LBB2_3:
+	retq
+.Lfunc_end2:
+	.size	_Z15fizzbuzz_serialPiS_i, .Lfunc_end2-_Z15fizzbuzz_serialPiS_i
+	.cfi_endproc
+                                        # -- End function
 	.section	.rodata.cst4,"aM",@progbits,4
-	.p2align	2, 0x0                          # -- Begin function main
-.LCPI2_0:
-	.long	0x3f800000                      # float 1
+	.p2align	2, 0x0                          # -- Begin function _Z15fizzbuzz_vectorPiS_i
+.LCPI3_0:
+	.long	1                               # 0x1
+	.text
+	.globl	_Z15fizzbuzz_vectorPiS_i
+	.p2align	4, 0x90
+	.type	_Z15fizzbuzz_vectorPiS_i,@function
+_Z15fizzbuzz_vectorPiS_i:               # @_Z15fizzbuzz_vectorPiS_i
+	.cfi_startproc
+# %bb.0:
+	vzeroall
+	cmpl	$8, %edx
+	jl	.LBB3_3
+# %bb.1:
+	addl	$-8, %edx
+	movslq	%edx, %rax
+	xorl	%ecx, %ecx
+	vpbroadcastd	.LCPI3_0(%rip), %ymm0   # ymm0 = [1,1,1,1,1,1,1,1]
+	vpcmpeqd	%ymm1, %ymm1, %ymm1
+	.p2align	4, 0x90
+.LBB3_2:                                # =>This Inner Loop Header: Depth=1
+	vmovdqa	(%rdi,%rcx,4), %ymm2
+	vptestnmd	%ymm0, %ymm2, %k1
+	vpaddd	%ymm1, %ymm2, %ymm3
+	vpaddd	%ymm2, %ymm2, %ymm3 {%k1}
+	vmovdqa	%ymm3, (%rsi,%rcx,4)
+	addq	$8, %rcx
+	cmpq	%rax, %rcx
+	jle	.LBB3_2
+.LBB3_3:
+	vzeroupper
+	retq
+.Lfunc_end3:
+	.size	_Z15fizzbuzz_vectorPiS_i, .Lfunc_end3-_Z15fizzbuzz_vectorPiS_i
+	.cfi_endproc
+                                        # -- End function
 	.section	.rodata.cst32,"aM",@progbits,32
-	.p2align	5, 0x0
-.LCPI2_1:
-	.long	0xc0400000                      # float -3
-	.long	0x40800000                      # float 4
-	.long	0xc0a00000                      # float -5
-	.long	0x3f800000                      # float 1
-	.long	0x40800000                      # float 4
-	.long	0xc1100000                      # float -9
-	.long	0x40000000                      # float 2
-	.long	0x3f800000                      # float 1
+	.p2align	5, 0x0                          # -- Begin function main
+.LCPI4_0:
+	.long	2                               # 0x2
+	.long	8                               # 0x8
+	.long	4                               # 0x4
+	.long	0                               # 0x0
+	.long	8                               # 0x8
+	.long	8                               # 0x8
+	.long	4                               # 0x4
+	.long	0                               # 0x0
 	.text
 	.globl	main
 	.p2align	4, 0x90
@@ -107,33 +169,34 @@ main:                                   # @main
 	.cfi_offset %r15, -16
 	xorl	%eax, %eax
 	leaq	.L__const.main.input(%rip), %rcx
-	vxorps	%xmm0, %xmm0, %xmm0
-	vmovss	.LCPI2_0(%rip), %xmm1           # xmm1 = [1.0E+0,0.0E+0,0.0E+0,0.0E+0]
 	.p2align	4, 0x90
-.LBB2_1:                                # =>This Inner Loop Header: Depth=1
-	vmovss	(%rax,%rcx), %xmm2              # xmm2 = mem[0],zero,zero,zero
-	vcmpltss	%xmm0, %xmm2, %xmm2
-	vandnps	%xmm1, %xmm2, %xmm2
-	vmovss	%xmm2, 16(%rsp,%rax)
+.LBB4_1:                                # =>This Inner Loop Header: Depth=1
+	movl	(%rax,%rcx), %edx
+	leal	-1(%rdx), %esi
+	movl	%edx, %edi
+	addl	%edx, %edi
+	testb	$1, %dl
+	cmovnel	%esi, %edi
+	movl	%edi, 16(%rsp,%rax)
 	addq	$4, %rax
 	cmpq	$32, %rax
-	jne	.LBB2_1
+	jne	.LBB4_1
 # %bb.2:
 	xorl	%r15d, %r15d
 	movq	_ZNSt3__14coutE@GOTPCREL(%rip), %rbx
 	leaq	.L.str(%rip), %r14
 	.p2align	4, 0x90
-.LBB2_3:                                # =>This Inner Loop Header: Depth=1
-	vmovss	16(%rsp,%r15,4), %xmm0          # xmm0 = mem[0],zero,zero,zero
+.LBB4_3:                                # =>This Inner Loop Header: Depth=1
+	movl	16(%rsp,%r15,4), %esi
 	movq	%rbx, %rdi
-	callq	_ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEElsEf@PLT
+	callq	_ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEElsEi@PLT
 	movl	$1, %edx
 	movq	%rax, %rdi
 	movq	%r14, %rsi
 	callq	_ZNSt3__124__put_character_sequenceB8ne180100IcNS_11char_traitsIcEEEERNS_13basic_ostreamIT_T0_EES7_PKS4_m
 	incq	%r15
 	cmpq	$8, %r15
-	jne	.LBB2_3
+	jne	.LBB4_3
 # %bb.4:
 	movq	(%rbx), %rax
 	addq	-24(%rax), %rbx
@@ -164,27 +227,23 @@ main:                                   # @main
 	movq	%rbx, %rdi
 	callq	_ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEE5flushEv@PLT
 	vzeroall
-	vxorps	%xmm0, %xmm0, %xmm0
-	vmovaps	.LCPI2_1(%rip), %ymm1           # ymm1 = [-3.0E+0,4.0E+0,-5.0E+0,1.0E+0,4.0E+0,-9.0E+0,2.0E+0,1.0E+0]
-	vmaxps	%ymm0, %ymm1, %ymm0
-	vbroadcastss	.LCPI2_0(%rip), %ymm1   # ymm1 = [1.0E+0,1.0E+0,1.0E+0,1.0E+0,1.0E+0,1.0E+0,1.0E+0,1.0E+0]
-	vminps	%ymm1, %ymm0, %ymm0
+	vmovaps	.LCPI4_0(%rip), %ymm0           # ymm0 = [2,8,4,0,8,8,4,0]
 	vmovaps	%ymm0, 16(%rsp)
 	xorl	%r15d, %r15d
 	leaq	.L.str(%rip), %r14
 	.p2align	4, 0x90
-.LBB2_7:                                # =>This Inner Loop Header: Depth=1
-	vmovss	16(%rsp,%r15,4), %xmm0          # xmm0 = mem[0],zero,zero,zero
+.LBB4_7:                                # =>This Inner Loop Header: Depth=1
+	movl	16(%rsp,%r15,4), %esi
 	movq	%rbx, %rdi
 	vzeroupper
-	callq	_ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEElsEf@PLT
+	callq	_ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEElsEi@PLT
 	movl	$1, %edx
 	movq	%rax, %rdi
 	movq	%r14, %rsi
 	callq	_ZNSt3__124__put_character_sequenceB8ne180100IcNS_11char_traitsIcEEEERNS_13basic_ostreamIT_T0_EES7_PKS4_m
 	incq	%r15
 	cmpq	$8, %r15
-	jne	.LBB2_7
+	jne	.LBB4_7
 # %bb.8:
 	movq	(%rbx), %rax
 	addq	-24(%rax), %rbx
@@ -224,24 +283,24 @@ main:                                   # @main
 	popq	%r15
 	.cfi_def_cfa_offset 8
 	retq
-.LBB2_13:
+.LBB4_13:
 	.cfi_def_cfa_offset 80
 .Ltmp9:
-	jmp	.LBB2_12
-.LBB2_11:
+	jmp	.LBB4_12
+.LBB4_11:
 .Ltmp4:
-.LBB2_12:
+.LBB4_12:
 	movq	%rax, %rbx
 	leaq	8(%rsp), %rdi
 	callq	_ZNSt3__16localeD1Ev@PLT
 	movq	%rbx, %rdi
 	callq	_Unwind_Resume@PLT
-.Lfunc_end2:
-	.size	main, .Lfunc_end2-main
+.Lfunc_end4:
+	.size	main, .Lfunc_end4-main
 	.cfi_endproc
 	.section	.gcc_except_table,"a",@progbits
 	.p2align	2, 0x0
-GCC_except_table2:
+GCC_except_table4:
 .Lexception0:
 	.byte	255                             # @LPStart Encoding = omit
 	.byte	255                             # @TType Encoding = omit
@@ -265,7 +324,7 @@ GCC_except_table2:
 	.uleb128 .Ltmp9-.Lfunc_begin0           #     jumps to .Ltmp9
 	.byte	0                               #   On action: cleanup
 	.uleb128 .Ltmp8-.Lfunc_begin0           # >> Call Site 5 <<
-	.uleb128 .Lfunc_end2-.Ltmp8             #   Call between .Ltmp8 and .Lfunc_end2
+	.uleb128 .Lfunc_end4-.Ltmp8             #   Call between .Ltmp8 and .Lfunc_end4
 	.byte	0                               #     has no landing pad
 	.byte	0                               #   On action: cleanup
 .Lcst_end0:
@@ -312,7 +371,7 @@ _ZNSt3__124__put_character_sequenceB8ne180100IcNS_11char_traitsIcEEEERNS_13basic
 .Ltmp11:
 # %bb.1:
 	cmpb	$0, 24(%rsp)
-	je	.LBB3_10
+	je	.LBB5_10
 # %bb.2:
 	movq	(%rbx), %rax
 	movq	-24(%rax), %rax
@@ -320,7 +379,7 @@ _ZNSt3__124__put_character_sequenceB8ne180100IcNS_11char_traitsIcEEEERNS_13basic
 	movq	40(%rbx,%rax), %r12
 	movl	8(%rbx,%rax), %r13d
 	cmpl	$-1, 144(%rbx,%rax)
-	jne	.LBB3_7
+	jne	.LBB5_7
 # %bb.3:
 .Ltmp13:
 	leaq	8(%rsp), %rdi
@@ -348,7 +407,7 @@ _ZNSt3__124__put_character_sequenceB8ne180100IcNS_11char_traitsIcEEEERNS_13basic
 	movsbl	%bpl, %eax
 	movq	16(%rsp), %r8                   # 8-byte Reload
 	movl	%eax, 144(%r8)
-.LBB3_7:
+.LBB5_7:
 	movsbl	144(%r8), %r9d
 	andl	$176, %r13d
 	addq	%r15, %r14
@@ -363,7 +422,7 @@ _ZNSt3__124__put_character_sequenceB8ne180100IcNS_11char_traitsIcEEEERNS_13basic
 .Ltmp21:
 # %bb.8:
 	testq	%rax, %rax
-	jne	.LBB3_10
+	jne	.LBB5_10
 # %bb.9:
 	movq	(%rbx), %rax
 	movq	-24(%rax), %rax
@@ -373,10 +432,10 @@ _ZNSt3__124__put_character_sequenceB8ne180100IcNS_11char_traitsIcEEEERNS_13basic
 .Ltmp23:
 	callq	_ZNSt3__18ios_base5clearEj@PLT
 .Ltmp24:
-.LBB3_10:
+.LBB5_10:
 	leaq	24(%rsp), %rdi
 	callq	_ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEE6sentryD1Ev@PLT
-.LBB3_11:
+.LBB5_11:
 	movq	%rbx, %rax
 	addq	$40, %rsp
 	.cfi_def_cfa_offset 56
@@ -393,28 +452,28 @@ _ZNSt3__124__put_character_sequenceB8ne180100IcNS_11char_traitsIcEEEERNS_13basic
 	popq	%rbp
 	.cfi_def_cfa_offset 8
 	retq
-.LBB3_12:
+.LBB5_12:
 	.cfi_def_cfa_offset 96
 .Ltmp25:
-	jmp	.LBB3_15
-.LBB3_13:
+	jmp	.LBB5_15
+.LBB5_13:
 .Ltmp19:
 	movq	%rax, %r14
 	leaq	8(%rsp), %rdi
 	callq	_ZNSt3__16localeD1Ev@PLT
-	jmp	.LBB3_16
-.LBB3_14:
+	jmp	.LBB5_16
+.LBB5_14:
 .Ltmp22:
-.LBB3_15:
+.LBB5_15:
 	movq	%rax, %r14
-.LBB3_16:
+.LBB5_16:
 	leaq	24(%rsp), %rdi
 	callq	_ZNSt3__113basic_ostreamIcNS_11char_traitsIcEEE6sentryD1Ev@PLT
-	jmp	.LBB3_18
-.LBB3_17:
+	jmp	.LBB5_18
+.LBB5_17:
 .Ltmp12:
 	movq	%rax, %r14
-.LBB3_18:
+.LBB5_18:
 	movq	%r14, %rdi
 	callq	__cxa_begin_catch@PLT
 	movq	(%rbx), %rax
@@ -425,8 +484,8 @@ _ZNSt3__124__put_character_sequenceB8ne180100IcNS_11char_traitsIcEEEERNS_13basic
 .Ltmp27:
 # %bb.19:
 	callq	__cxa_end_catch@PLT
-	jmp	.LBB3_11
-.LBB3_20:
+	jmp	.LBB5_11
+.LBB5_20:
 .Ltmp28:
 	movq	%rax, %rbx
 .Ltmp29:
@@ -435,16 +494,16 @@ _ZNSt3__124__put_character_sequenceB8ne180100IcNS_11char_traitsIcEEEERNS_13basic
 # %bb.21:
 	movq	%rbx, %rdi
 	callq	_Unwind_Resume@PLT
-.LBB3_22:
+.LBB5_22:
 .Ltmp31:
 	movq	%rax, %rdi
 	callq	__clang_call_terminate
-.Lfunc_end3:
-	.size	_ZNSt3__124__put_character_sequenceB8ne180100IcNS_11char_traitsIcEEEERNS_13basic_ostreamIT_T0_EES7_PKS4_m, .Lfunc_end3-_ZNSt3__124__put_character_sequenceB8ne180100IcNS_11char_traitsIcEEEERNS_13basic_ostreamIT_T0_EES7_PKS4_m
+.Lfunc_end5:
+	.size	_ZNSt3__124__put_character_sequenceB8ne180100IcNS_11char_traitsIcEEEERNS_13basic_ostreamIT_T0_EES7_PKS4_m, .Lfunc_end5-_ZNSt3__124__put_character_sequenceB8ne180100IcNS_11char_traitsIcEEEERNS_13basic_ostreamIT_T0_EES7_PKS4_m
 	.cfi_endproc
 	.section	.gcc_except_table._ZNSt3__124__put_character_sequenceB8ne180100IcNS_11char_traitsIcEEEERNS_13basic_ostreamIT_T0_EES7_PKS4_m,"aG",@progbits,_ZNSt3__124__put_character_sequenceB8ne180100IcNS_11char_traitsIcEEEERNS_13basic_ostreamIT_T0_EES7_PKS4_m,comdat
 	.p2align	2, 0x0
-GCC_except_table3:
+GCC_except_table5:
 .Lexception1:
 	.byte	255                             # @LPStart Encoding = omit
 	.byte	155                             # @TType Encoding = indirect pcrel sdata4
@@ -490,7 +549,7 @@ GCC_except_table3:
 	.uleb128 .Ltmp31-.Lfunc_begin1          #     jumps to .Ltmp31
 	.byte	1                               #   On action: 1
 	.uleb128 .Ltmp30-.Lfunc_begin1          # >> Call Site 10 <<
-	.uleb128 .Lfunc_end3-.Ltmp30            #   Call between .Ltmp30 and .Lfunc_end3
+	.uleb128 .Lfunc_end5-.Ltmp30            #   Call between .Ltmp30 and .Lfunc_end5
 	.byte	0                               #     has no landing pad
 	.byte	0                               #   On action: cleanup
 .Lcst_end1:
@@ -535,7 +594,7 @@ _ZNSt3__116__pad_and_outputB8ne180100IcNS_11char_traitsIcEEEENS_19ostreambuf_ite
 	.cfi_offset %r15, -24
 	.cfi_offset %rbp, -16
 	testq	%rdi, %rdi
-	je	.LBB4_21
+	je	.LBB6_21
 # %bb.1:
 	movq	%r8, %r12
 	movq	%rcx, %r14
@@ -551,29 +610,29 @@ _ZNSt3__116__pad_and_outputB8ne180100IcNS_11char_traitsIcEEEENS_19ostreambuf_ite
 	movq	%rdx, %rbx
 	subq	%rsi, %rbx
 	testq	%rbx, %rbx
-	jle	.LBB4_3
+	jle	.LBB6_3
 # %bb.2:
 	movq	(%r13), %rax
 	movq	%r13, %rdi
 	movq	%rbx, %rdx
 	callq	*96(%rax)
 	cmpq	%rbx, %rax
-	jne	.LBB4_21
-.LBB4_3:
+	jne	.LBB6_21
+.LBB6_3:
 	testq	%rbp, %rbp
-	jle	.LBB4_8
+	jle	.LBB6_8
 # %bb.4:
 	cmpq	$22, %rbp
-	ja	.LBB4_9
+	ja	.LBB6_9
 # %bb.5:
 	leal	(,%rbp,2), %eax
 	movb	%al, (%rsp)
 	leaq	1(%rsp), %rbx
-	jmp	.LBB4_10
-.LBB4_8:
+	jmp	.LBB6_10
+.LBB6_8:
 	movq	%r13, %rax
-	jmp	.LBB4_17
-.LBB4_9:
+	jmp	.LBB6_17
+.LBB6_9:
 	movabsq	$9223372036854775800, %rax      # imm = 0x7FFFFFFFFFFFFFF8
 	andq	%rbp, %rax
 	addq	$8, %rax
@@ -591,20 +650,20 @@ _ZNSt3__116__pad_and_outputB8ne180100IcNS_11char_traitsIcEEEENS_19ostreambuf_ite
 	movq	%r12, (%rsp)
 	movq	32(%rsp), %r12                  # 8-byte Reload
 	movq	%rbp, 8(%rsp)
-.LBB4_10:
+.LBB6_10:
 	movzbl	28(%rsp), %esi                  # 1-byte Folded Reload
 	movq	%rbx, %rdi
 	movq	%rbp, %rdx
 	callq	memset@PLT
 	movb	$0, (%rbx,%rbp)
 	testb	$1, (%rsp)
-	je	.LBB4_12
+	je	.LBB6_12
 # %bb.11:
 	movq	16(%rsp), %rsi
-	jmp	.LBB4_13
-.LBB4_12:
+	jmp	.LBB6_13
+.LBB6_12:
 	leaq	1(%rsp), %rsi
-.LBB4_13:
+.LBB6_13:
 	movq	(%r13), %rax
 .Ltmp32:
 	movq	%r13, %rdi
@@ -617,7 +676,7 @@ _ZNSt3__116__pad_and_outputB8ne180100IcNS_11char_traitsIcEEEENS_19ostreambuf_ite
 	cmpq	%rbp, %rbx
 	cmoveq	%r13, %rax
 	testb	$1, (%rsp)
-	je	.LBB4_16
+	je	.LBB6_16
 # %bb.15:
 	movq	16(%rsp), %rdi
 	movq	%r12, %r13
@@ -625,13 +684,13 @@ _ZNSt3__116__pad_and_outputB8ne180100IcNS_11char_traitsIcEEEENS_19ostreambuf_ite
 	callq	_ZdlPv@PLT
 	movq	%r12, %rax
 	movq	%r13, %r12
-.LBB4_16:
+.LBB6_16:
 	cmpq	%rbp, %rbx
-	jne	.LBB4_21
-.LBB4_17:
+	jne	.LBB6_21
+.LBB6_17:
 	subq	%r15, %r14
 	testq	%r14, %r14
-	jle	.LBB4_19
+	jle	.LBB6_19
 # %bb.18:
 	movq	(%rax), %rcx
 	movq	%rax, %rdi
@@ -642,13 +701,13 @@ _ZNSt3__116__pad_and_outputB8ne180100IcNS_11char_traitsIcEEEENS_19ostreambuf_ite
 	movq	%rax, %rcx
 	movq	%rbx, %rax
 	cmpq	%r14, %rcx
-	jne	.LBB4_21
-.LBB4_19:
+	jne	.LBB6_21
+.LBB6_19:
 	movq	$0, 24(%r12)
-	jmp	.LBB4_22
-.LBB4_21:
+	jmp	.LBB6_22
+.LBB6_21:
 	xorl	%eax, %eax
-.LBB4_22:
+.LBB6_22:
 	addq	$40, %rsp
 	.cfi_def_cfa_offset 56
 	popq	%rbx
@@ -664,24 +723,24 @@ _ZNSt3__116__pad_and_outputB8ne180100IcNS_11char_traitsIcEEEENS_19ostreambuf_ite
 	popq	%rbp
 	.cfi_def_cfa_offset 8
 	retq
-.LBB4_23:
+.LBB6_23:
 	.cfi_def_cfa_offset 96
 .Ltmp34:
 	movq	%rax, %rbx
 	testb	$1, (%rsp)
-	je	.LBB4_25
+	je	.LBB6_25
 # %bb.24:
 	movq	16(%rsp), %rdi
 	callq	_ZdlPv@PLT
-.LBB4_25:
+.LBB6_25:
 	movq	%rbx, %rdi
 	callq	_Unwind_Resume@PLT
-.Lfunc_end4:
-	.size	_ZNSt3__116__pad_and_outputB8ne180100IcNS_11char_traitsIcEEEENS_19ostreambuf_iteratorIT_T0_EES6_PKS4_S8_S8_RNS_8ios_baseES4_, .Lfunc_end4-_ZNSt3__116__pad_and_outputB8ne180100IcNS_11char_traitsIcEEEENS_19ostreambuf_iteratorIT_T0_EES6_PKS4_S8_S8_RNS_8ios_baseES4_
+.Lfunc_end6:
+	.size	_ZNSt3__116__pad_and_outputB8ne180100IcNS_11char_traitsIcEEEENS_19ostreambuf_iteratorIT_T0_EES6_PKS4_S8_S8_RNS_8ios_baseES4_, .Lfunc_end6-_ZNSt3__116__pad_and_outputB8ne180100IcNS_11char_traitsIcEEEENS_19ostreambuf_iteratorIT_T0_EES6_PKS4_S8_S8_RNS_8ios_baseES4_
 	.cfi_endproc
 	.section	.gcc_except_table._ZNSt3__116__pad_and_outputB8ne180100IcNS_11char_traitsIcEEEENS_19ostreambuf_iteratorIT_T0_EES6_PKS4_S8_S8_RNS_8ios_baseES4_,"aG",@progbits,_ZNSt3__116__pad_and_outputB8ne180100IcNS_11char_traitsIcEEEENS_19ostreambuf_iteratorIT_T0_EES6_PKS4_S8_S8_RNS_8ios_baseES4_,comdat
 	.p2align	2, 0x0
-GCC_except_table4:
+GCC_except_table6:
 .Lexception2:
 	.byte	255                             # @LPStart Encoding = omit
 	.byte	255                             # @TType Encoding = omit
@@ -697,7 +756,7 @@ GCC_except_table4:
 	.uleb128 .Ltmp34-.Lfunc_begin2          #     jumps to .Ltmp34
 	.byte	0                               #   On action: cleanup
 	.uleb128 .Ltmp33-.Lfunc_begin2          # >> Call Site 3 <<
-	.uleb128 .Lfunc_end4-.Ltmp33            #   Call between .Ltmp33 and .Lfunc_end4
+	.uleb128 .Lfunc_end6-.Ltmp33            #   Call between .Ltmp33 and .Lfunc_end6
 	.byte	0                               #     has no landing pad
 	.byte	0                               #   On action: cleanup
 .Lcst_end2:
@@ -715,22 +774,22 @@ __clang_call_terminate:                 # @__clang_call_terminate
 	.cfi_def_cfa_offset 16
 	callq	__cxa_begin_catch@PLT
 	callq	_ZSt9terminatev@PLT
-.Lfunc_end5:
-	.size	__clang_call_terminate, .Lfunc_end5-__clang_call_terminate
+.Lfunc_end7:
+	.size	__clang_call_terminate, .Lfunc_end7-__clang_call_terminate
 	.cfi_endproc
                                         # -- End function
 	.type	.L__const.main.input,@object    # @__const.main.input
 	.section	.rodata.cst32,"aM",@progbits,32
 	.p2align	4, 0x0
 .L__const.main.input:
-	.long	0xc0400000                      # float -3
-	.long	0x40800000                      # float 4
-	.long	0xc0a00000                      # float -5
-	.long	0x3f800000                      # float 1
-	.long	0x40800000                      # float 4
-	.long	0xc1100000                      # float -9
-	.long	0x40000000                      # float 2
-	.long	0x3f800000                      # float 1
+	.long	3                               # 0x3
+	.long	4                               # 0x4
+	.long	5                               # 0x5
+	.long	1                               # 0x1
+	.long	4                               # 0x4
+	.long	9                               # 0x9
+	.long	2                               # 0x2
+	.long	1                               # 0x1
 	.size	.L__const.main.input, 32
 
 	.type	.L.str,@object                  # @.str
