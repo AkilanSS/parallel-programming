@@ -3,26 +3,17 @@ const Io = std.Io;
 
 const ispc = @import("ispc");
 
+const a: comptime_float = -2;
+const b: comptime_float = 2;
+const subdivisions: comptime_int = 1000;
+
+const max_iterations: comptime_int = 255;
+
 extern fn simple(in: [*]const f32, vout: [*]f32, count: i32) callconv(.c) void;
+extern fn mandelbrot_set(result: [*][*]u32, a: f32, b: f32, subdivisions: u32) callconv(.c) void;
 
 pub fn main(init: std.process.Init) !void {
-    const count: i32 = 100000;
-
-    var vin = try init.gpa.alloc(f32, count);
-    var vout = try init.gpa.alloc(f32, count);
-
-    defer init.gpa.free(vin);
-    defer init.gpa.free(vout);
-    _ = &vout;
-    _ = &vin;
-
-    for (0..count) |i| {
-        vin[i] = @as(f32, @floatFromInt(i));
-    }
-
-    simple(vin.ptr, vout.ptr, count);
-
-    for (0..count) |i| {
-        std.debug.print("{d}\n", .{vout[i]});
-    }
+    _ = init;
+    var mandelbrot_set_result: [subdivisions + 1][subdivisions + 1]u32 = [_][subdivisions + 1]u32{[_]u32{max_iterations} ** (subdivisions + 1)} ** (subdivisions + 1);
+    mandelbrot_set(&mandelbrot_set_result, a, b, subdivisions);
 }
